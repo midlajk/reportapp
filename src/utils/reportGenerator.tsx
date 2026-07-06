@@ -27,7 +27,7 @@ const ReportView = React.forwardRef<ViewShot, ReportProps>(({ data, slipNo }, re
 
   return (
     <ViewShot ref={ref} options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-      <View style={rs.page}>
+      <View style={rs.page} nativeID="report-view-container">
         {/* ── Header ── */}
         <View style={rs.headerRow}>
           <View style={rs.headerLeft}>
@@ -133,20 +133,28 @@ ReportView.displayName = 'ReportView';
  * Capture the report view as a PNG image and share it.
  */
 export const captureAndShareReport = async (viewShotRef: React.RefObject<ViewShot | null>): Promise<void> => {
+  if (Platform.OS === 'web') {
+    // On web, use html-to-image to capture the DOM element directly!
+    const element = document.getElementById('report-view-container');
+    if (!element) {
+      throw new Error('Report view container element was not found in the DOM');
+    }
+
+    const htmlToImage = require('html-to-image');
+    const dataUrl = await htmlToImage.toPng(element, { backgroundColor: '#FFFFFF' });
+
+    const link = document.createElement('a');
+    link.download = `weigh_slip_${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
+    return;
+  }
+
   if (!viewShotRef.current) {
     throw new Error('Report view ref is not available');
   }
 
   const uri = await (viewShotRef.current as any).capture();
-
-  if (Platform.OS === 'web') {
-    // On web, trigger a browser download of the captured data URI PNG
-    const link = document.createElement('a');
-    link.download = `weigh_slip_${Date.now()}.png`;
-    link.href = uri;
-    link.click();
-    return;
-  }
 
   // Copy to a shareable path with a descriptive name
   const fileName = `weigh_slip_${Date.now()}.png`;
